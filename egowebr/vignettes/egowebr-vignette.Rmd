@@ -1,0 +1,131 @@
+---
+title: "Introduction to EgoWebR"
+author: "Written by Justin W. Lee"
+date: "Last updated `r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to EgoWebR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(egowebr)
+```
+# Introduction
+EgoWebR is an R package that provides functions to process, analyze, and visualize EgoWeb datasets.
+This vignette specifies the order in which EgoWebR functions should be run and how their arguments should be specified. 
+This flow has been developed based on the steps that EgoWeb 2.0 users typically take to process EgoWeb 2.0 datasets. The procedures were defined by David Kennedy, who has been leading the development of EgoWeb 2.0 since 2010. Apply the process from this vignette to your own EgoWeb 2.0 dataset will allow you to:
+
+* Summarize your raw EgoWeb 2.0 data with ego- and alter- level totals, proportions, and means.
+* Define and summarize custom and default variables that transform or combine raw EgoWeb 2.0 variables.
+* Construct commonly used network data structural measures.
+* Produce automatically formatted summary tables that can be easily distributed and used for data cleaning.
+* Visualize your networks in an easy-to-use Shiny app.
+
+This vignette will briefly detail the specifications needed in each function, but for more detail regarding optional arguments, please see the package documentation.
+
+# The Care.Pilot Dataset
+For this vignette, we will be using the `care.pilot` example data contained within the `egowebr` package. This dataset was collected from a nationally representative sample of 66 family caregivers to persons with dementia (PWDs) in the United States aged 18 and older, including information on network members’ support to the caregiver and help to the care recipient. The interview included questions about the PWD (e.g., conditions and demographic characteristics), caregiver respondent (e.g., intensity of care and type of help provided), as well as questions about the network of people strongly connected to the caregiver and other people who were available to provide direct support to the PWD.
+
+**The version of `care.pilot` provided in this package** has already been outputted by the `process_egoweb()` function as you see in the next step below.
+
+# Data Intake and Conversion
+First, we use the `process_egoweb()` function to read in the `care.pilot` EgoWeb 2.0 dataset from three .csv files, exported directly from an EgoWeb 2.0 study. This function converts EgoWeb 2.0 export data into the `egor` class created by the `egor` package. This will then allow most functions from the `egor` package to also be compatible with our data structure.
+
+The `ID.vars` argument takes a list containing the identifier variables for each of: ego, alter, source, and target, where source and target refer to the two alters connected by an aatie edge. The values for `ID.vars` shown below are the EgoWeb export defaults, and are also the defaults for this function, so they do not need to be explicitly specified.
+
+The result of this code chunk is equivalent to the `care.pilot` dataset included in this package.
+
+```{r process_egoweb}
+alter.csv <- file.choose()
+edges.csv <- file.choose()
+egos.csv <- file.choose()
+
+care.pilot <-
+  process_egoweb(alter.csv = alter.csv,
+                 edges.csv = edges.csv,
+                 egos.csv = egos.csv,
+                 ID.vars = list(ego = "EgoID",
+                                alter = "Alter.Number", source = "Alter.1.Number",
+                                target = "Alter.2.Number"))
+```
+
+# Specifying the Codebook
+We need to also specify the address of the EgoWeb 2.0 export codebook for use in the `make_summary_vars()` function later.
+
+```{r codebook}
+codebook.input <- file.choose()
+```
+
+# Add Custom Variables
+The `define_vars()` function allows us to construct new variables at any level of our `egor` dataset by specifying their definitions within any of the `ego.formula`, `alter.formula`, or `aatie.formula` arguments. In this example, we define two custom alter variables, `r_anysup` and `c_anysup`, that depend on the values different `COMP` variables take.
+
+```{r define_Vars, include = TRUE, echo = TRUE}
+care.pilot.def <- define_vars(egor.data = care.pilot,
+                              alter.formula = c("r_anysup = ifelse(COMP1a==1 | COMP1b==1 | COMP1c==1 | COMP1d==1 | COMP1e==1, 1, 0)",
+                                                "c_anysup = ifelse(COMP3a==1 | COMP3b==1 | COMP3c==1 | COMP3d==1 | COMP3e==1 | COMP3f==1 | COMP3g==1, 1, 0)"))
+```
+
+# Create Automatic Summary Variables
+Next, the `make_summary_vars()` function is run, which uses the values and labels supplied in the codebook exported from the same EgoWeb 2.0 study to create new recoded categorical variables, dummy variables for multiple selection items, ego-level totals, ego-level means, and ego-level proportions. You can also specify variables made with `define_vars()` to be processed in addition to those in the codebook. For additional multiple select variables, supply the variable names to the `additional.mult.select.vars` argument and the labels that should be used to the `additional.multselect.vars.labels` argument. For new numeric variables, list them in the `additional.numeric.vars` argument.
+
+In this example, we add the two variables defined above, `r_anysup` and `c_anysup` into the variables to be summarized, and supply their labels as binary Yes/No.
+
+```{r make_summary_vars}
+care.pilot.sum <- make_summary_vars(egor.data = care.pilot.def,
+                                    codebook.address = codebook.input,
+                                    additional.multselect.vars = c("r_anysup", "c_anysup"),
+                                    additional.multselect.vars.labels = list(c("Yes = 1", "No = 0"),
+                                                                             c("Yes = 1", "No = 0")))
+```
+
+# View Summary Tables
+Now we can call the `table1_ego()` and `table1_alter()` functions to produce formatted summary tables in the R Viewer pane that display the summary variables we calculated in the previous step. We supply titles for each table in the `caption` argument.
+
+```{r table1_ego, results = 'hide'}
+table1_ego(egor.data = care.pilot.sum, caption = "Descriptive Stats: Ego Level Variables")
+```
+
+```{r table1_alter, results = 'hide'}
+table1_alter(egor.data = care.pilot.sum, caption = "Descriptive Stats: Alter Level Variables")
+```
+
+# Split Into Subnetworks
+Next, we want to consider different definitions of edges to define the circumstances when an aatie relationship exists based on an EgoWeb 2.0 "alter pair" question. In this example, we define two definitions -- the `know` level, which requires `STRUCT` to be greater than or equal to 0, and the `know.reg.contact` level, which requires `STRUCT` to be greater than or equal to 1. Using the `split_subnetworks()` function, we reformat our single `egor`-class dataset into a list of `egor`-class datasets, one for each different edge definition.
+
+``` {r subnetworks}
+care.pilot.split <- split_subnetworks(
+  egor.data = care.pilot.sum,
+  aatie.formula.binary = list("know = ifelse(STRUC1 >= 0, 1, 0)", "know.reg.contact = ifelse(STRUC1 >= 1, 1, 0)")
+)
+```
+
+# Construct Structural Measures
+Then we can use the `construct_measures()` function to calculate commonly used network structural measures defined in the `igraph` package for each subnetwork at the ego- and alter- levels. The constructed variable names will be prefixed with the `"struct."` string.
+
+```{r measures}
+care.pilot.struct <- construct_measures(care.pilot.split)
+```
+
+# View Structural Summary Table
+Now we can view a summary table of the structural measures in the R Viewer pane by calling the `table1_struct` function.
+
+```{r table1_struct, results = 'hide'}
+table1_struct(egor.data = care.pilot.struct, caption = "Structural Variables")
+```
+
+# Visualize Networks with Shiny App
+Lastly, we can start the egor visualization Shiny App to visualize our network data. First, we must assign each subnetwork to its own `egor`-class object. The Shiny App will include every `egor`-class object currently in the workspace as a network option to be visualized.
+
+```{r viz}
+care.pilot.know <- care.pilot.struct$know
+care.pilot.know.reg.contact <- care.pilot.struct$know.reg.contact
+
+#visualize_egor()
+```
