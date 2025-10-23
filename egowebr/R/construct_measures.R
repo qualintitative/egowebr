@@ -4,8 +4,9 @@
 #' the input egor object. 
 #' 
 #' @param egor.data An egor object.
+#' @param include.optional Logical indicating whether to construct more obscure measures: transitivity, diameter, eff.size, brokerage, shortest.path. Defaults to FALSE.
 #' @export
-construct_measures <- function(egor.data) {
+construct_measures <- function(egor.data, include.optional = FALSE) {
   
   EffectiveSize <- function(x){
     e <- igraph::ecount(x)
@@ -55,37 +56,48 @@ construct_measures <- function(egor.data) {
     #########################################
     ### Calculation of ego-level measures ###
     #########################################
+    
+    # Construct optional measures if parameter is set to TRUE
+    if(include.optional == TRUE){
+      egor.data_transitivity <- lapply(egor.data_graphs, function(x) {igraph::transitivity(x, type = c("global"))[1]}) |> stack() |>
+        select(values) |>
+        rename(struct.transitiviy = values)
+      egor.data_diameter <- lapply(egor.data_graphs, function(x) {igraph::diameter(x)}) |> stack() |>
+        select(values) |>
+        rename(struct.diameter = values)
+      egor.data_eff.size <- lapply(egor.data_graphs, function(x) {EffectiveSize(x)}) |> stack() |>
+        select(values) |>
+        rename(struct.eff.size = values)
+      egor.data_brokerage <- lapply(egor.data_graphs, function(x) {BrokerageWrapper(x)}) |> stack() |>
+        select(values) |>
+        rename(struct.brokerage = values)
+      egor.data_shortest.path <- lapply(egor.data_graphs, function(x) {ShortestPathWrapper(x)}) |> stack() |>
+        select(values) |>
+        rename(struct.shortest.path = values)
+    }
+    
     egor.data_density <- lapply(egor.data_graphs, function(x) {igraph::graph.density(x)}) |> stack() |>
       select(values) |>
       rename(struct.density = values)
     egor.data_components <- lapply(egor.data_graphs, function(x) {igraph::clusters(x, mode = "strong")$no}) |> stack() |>
       select(values) |>
       rename(struct.components = values)
-    egor.data_transitivity <- lapply(egor.data_graphs, function(x) {igraph::transitivity(x, type = c("global"))[1]}) |> stack() |>
-      select(values) |>
-      rename(struct.transitiviy = values)
     egor.data_degreecent <- lapply(egor.data_graphs, function(x) {igraph::centralization.degree(x)$centralization}) |> stack() |>
       select(values) |>
       rename(struct.degree.cent = values)
     egor.data_betweencent <- lapply(egor.data_graphs, function(x) {igraph::centralization.betweenness(x)$centralization}) |> stack() |>
       select(values) |>
       rename(struct.between.cent = values)
-    egor.data_diameter <- lapply(egor.data_graphs, function(x) {igraph::diameter(x)}) |> stack() |>
-      select(values) |>
-      rename(struct.diameter = values)
-    egor.data_eff.size <- lapply(egor.data_graphs, function(x) {EffectiveSize(x)}) |> stack() |>
-      select(values) |>
-      rename(struct.eff.size = values)
-    egor.data_brokerage <- lapply(egor.data_graphs, function(x) {BrokerageWrapper(x)}) |> stack() |>
-      select(values) |>
-      rename(struct.brokerage = values)
-    egor.data_shortest.path <- lapply(egor.data_graphs, function(x) {ShortestPathWrapper(x)}) |> stack() |>
-      select(values) |>
-      rename(struct.shortest.path = values)
     
-    egor.data[[i]]$ego <- egor.data[[i]]$ego |>
-      cbind(egor.data_density, egor.data_components, egor.data_transitivity, egor.data_degreecent, egor.data_betweencent,
-            egor.data_diameter, egor.data_eff.size, egor.data_brokerage, egor.data_shortest.path)
+    if(include.optional == TRUE) {
+      egor.data[[i]]$ego <- egor.data[[i]]$ego |>
+        cbind(egor.data_density, egor.data_components, egor.data_transitivity, egor.data_degreecent, egor.data_betweencent,
+              egor.data_diameter, egor.data_eff.size, egor.data_brokerage, egor.data_shortest.path)
+    } else {
+      egor.data[[i]]$ego <- egor.data[[i]]$ego |>
+        cbind(egor.data_density, egor.data_components, egor.data_degreecent, egor.data_betweencent)
+    }
+    
   }
   
   return(egor.data)
