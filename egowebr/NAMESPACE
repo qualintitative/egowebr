@@ -2,6 +2,7 @@
 
 export(construct_measures)
 export(define_vars)
+export(dropIDs)
 export(make_summary_vars)
 export(process_egoweb)
 export(split_subnetworks)

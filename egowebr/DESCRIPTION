@@ -2,8 +2,7 @@ Package: egowebr
 Title: Tools for Working with Ego-Centered Network Data
 Version: 0.0.0.9000
 Authors@R: 
-    person("Justin", "Lee", , "justinl@rand.org", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+    person("Justin", "Lee", , "justinl@rand.org", role = c("aut", "cre"))
 Description: This package provides functions that help process ego-centered network data.
     It is intended to intake data exports from EgoWeb and work in tandem 
     with functionality from the egor package.
@@ -15,7 +14,7 @@ License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Suggests: 
     knitr,
     rmarkdown
