@@ -4,10 +4,12 @@
 \alias{construct_measures}
 \title{Construct Network Measures}
 \usage{
-construct_measures(egor.data)
+construct_measures(egor.data, include.optional = FALSE)
 }
 \arguments{
 \item{egor.data}{An egor object.}
+
+\item{include.optional}{Logical indicating whether to construct more obscure measures: transitivity, diameter, eff.size, brokerage, shortest.path. Defaults to FALSE.}
 }
 \description{
 Adds commonly used network data measures onto each subnetwork level of
